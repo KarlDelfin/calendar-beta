@@ -1,7 +1,14 @@
+.logout_con {display: flex; justify-content: end; height: 100%; align-items: center;}
+
 .home_con {display: flex; gap: 20px;}
+    .sidebar .cta {display: flex; gap: 10px;}
+    .sidebar .cta button{width: 100%;}
+    
+
     .sidebar {max-width: 250px; width: 100%; display: flex; flex-direction: column; gap: 10px}
     .sidebar .create_calendar {}
     .sidebar .create_calendar button {width: 100%;}
+
     .calendar {width: 100%;}
 
 .submit_btn {display: flex; justify-content: end;}

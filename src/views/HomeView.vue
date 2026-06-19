@@ -1,6 +1,9 @@
 <template>
   <div class="home_con">
     <div class="sidebar">
+      <div class="cta">
+        <el-button @click="this.$router.push('/calendar')">Calendars</el-button>
+      </div>
 
       <div class="vcalendar">
         <VCalendar 
@@ -18,7 +21,7 @@
       </div>
 
       <div class="calendar_select">
-        <el-select v-model="sidebar.calendarId">
+        <el-select v-model="sidebar.calendarId" :loading="loading.selectCalendarInput" @click="getCalendars" @change="getCalendarEventsByCalendarId">
           <el-option v-for="calendar in calendars" :label="calendar.calendarName" :value="calendar.calendarId"/>
         </el-select>
       </div>
@@ -35,14 +38,14 @@
  </div>
 
   <el-dialog v-model="dialog.calendarForm" :title="dialog.title" center :before-close="clear" width="600">
-    <el-form @submit.prevent="submitForm" label-position="top">
-      <el-form-item label="Calendar Name">
-        <el-input v-model="calendarForm.calendarName" type="text" placeholder="Calendar Name"/>
-      </el-form-item>
-      <div class="submit_btn">
-        <el-button type="primary">Confirm</el-button>
-      </div>
-    </el-form>
+      <el-form label-position="top">
+        <el-form-item label="Calendar Name">
+          <el-input v-model="calendarForm.calendarName" type="text" placeholder="Calendar Name"/>
+        </el-form-item>
+        <div class="submit_btn">
+          <el-button @click="submitForm" type="primary" :loading="loading.calendarSubmitBtn">Confirm</el-button>
+        </div>
+      </el-form>
   </el-dialog>
 </template>
 
@@ -54,7 +57,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import list from '@fullcalendar/list'
 import { supabase } from '../lib/supabaseClient'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElLoading } from 'element-plus'
 import moment from 'moment'
 
 export default {
@@ -80,8 +83,13 @@ export default {
       },
       dialog: {
         calendarForm: false,
-        title: ''
+        title: '',
       },
+      loading: {
+        calendarSubmitBtn: false,
+        selectCalendarInput: false
+      },
+      selectedCalendarId: '',
 
       calendars: [],
       calendarForm: {
@@ -137,11 +145,13 @@ export default {
             },
           },
         },
+
         headerToolbar: {
           start: 'todayCustom,prevCustom,nextCustom',
           center: 'title',
           end: 'createEvent monthCustom,weekCustom,dayCustom,listCustom',
         },
+
         // Custom Button
         customButtons: {
           createEvent: {
@@ -193,11 +203,6 @@ export default {
             },
           },
         },
-        // validRange: function(nowDate) {
-        //   return {
-        //     start: nowDate
-        //   };
-        // },
         height: 600,
         plugins: [dayGridPlugin, interactionPlugin, timeGridPlugin, list, rrulePlugin],
         timeZone: 'UTC',
@@ -253,26 +258,71 @@ export default {
         }
       },
 
-      async submitForm(){
-        const { data, error } = await supabase
-        .from('Calendar')
-        .insert(this.calendarForm)
+      async submitForm() {
+        if (this.dialog.title === 'Create Calendar') {
+          this.loading.calendarSubmitBtn = true
+          
+          try {
+            const { data, error } = await supabase
+              .from('Calendar')
+              .insert(this.calendarForm)
 
-        if(error) {
-          ElMessage.error('Failed to add Calendar')
-          return
+            if (error) {
+              ElMessage.error('Failed to add Calendar')
+              return
+            }
+
+            ElMessage.success('Calendar added successfully')
+            this.clear()
+            this.getCalendars()
+            
+          } catch (error) {
+            ElMessage.error('An unexpected error occurred')
+            console.error(error)
+          } finally {
+            this.loading.calendarSubmitBtn = false
+          }
         }
-
-        ElMessage.success('Calendar added successfully')
-        this.getCalendars()
       },
 
       async getCalendars() {
-        const { data, error } = await supabase
-          .from('Calendar')
-          .select('*')
+        this.loading.selectCalendarInput = true
+        try{
+          const { data, error } = await supabase
+            .from('Calendar')
+            .select('*')
 
-        this.calendars = data
+          this.calendars = data
+        }
+        catch(error) {
+          ElMessage.error('An unexpected error occurred')
+          console.error(error)
+        }
+        finally{
+          this.loading.selectCalendarInput = false
+        }
+      },
+
+      async getCalendarEventsByCalendarId(calendarId){
+        const loading = ElLoading.service({
+          lock: true,
+          text: 'Loading',
+          background: 'rgba(0, 0, 0, 0.7)',
+        })
+        this.selectedCalendarId = calendarId
+        try{
+          const { data, error } = await supabase
+          .from('CalendarEvent')
+          .select('*')
+          .eq('calendarId', calendarId)
+        }
+        catch(error) {
+          ElMessage.error('An unexpected error occurred')
+          console.error(error)
+        }
+        finally {
+          loading.close()
+        }
       },
 
       async moveResizeEvent(info){console.log(info)},
@@ -297,7 +347,7 @@ export default {
         this.pickerKey++
         this.today = new Date()
         this.calendarApi.today()
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
       
       prevCustom() {
@@ -305,7 +355,7 @@ export default {
           this.calendarApi.prev()
           const currentDate = moment(this.calendarApi.getDate()).format();
           this.calendarApi.gotoDate(currentDate)
-          this.getCalendarEvents()
+          this.getCalendarEventsByCalendarId()
       },
 
       nextCustom() {
@@ -314,7 +364,7 @@ export default {
 
           const currentDate = moment(this.calendarApi.getDate()).format();
           this.calendarApi.gotoDate(currentDate)
-          this.getCalendarEvents()
+          this.getCalendarEventsByCalendarId()
 
           console.log(this.pickerKey)
       },
@@ -323,36 +373,32 @@ export default {
         this.weekClicked = false
         this.dayClicked = false
         this.calendarApi.changeView('dayGridMonth')
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
 
       weekCustom() {
         this.weekClicked = true
         this.dayClicked = false
         this.calendarApi.changeView('timeGridWeek')
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
 
       dayCustom() {
         this.weekClicked = false
         this.dayClicked = true
         this.calendarApi.changeView('timeGridDay')
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
 
       listCustom() {
         this.calendarApi.changeView('listMonth')
-        this.getCalendarEvents()
-      },
-
-      getCalendarEvents(){
-        console.log('EVENTS HERE...')
+        this.getCalendarEventsByCalendarId()
       },
 
       didMove(info) {
         let formatDate = moment(info[0].id).add(1, 'days').format()
         this.calendarApi.gotoDate(formatDate)
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
 
       dayClick(info) {
@@ -360,12 +406,12 @@ export default {
         this.dayClicked = true
         this.calendarApi.changeView('timeGridDay')
         this.calendarApi.gotoDate(info.endDate)
-        this.getCalendarEvents()
+        this.getCalendarEventsByCalendarId()
       },
   },
   mounted(){
     this.calendarApi = this.$refs.refCalendar.getApi()
-    this.getCalendars()
+    
   }
 }
 </script>
