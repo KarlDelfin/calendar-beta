@@ -3,7 +3,14 @@
     <div class="sidebar">
 
       <div class="vcalendar">
-        <VCalendar/>
+        <VCalendar 
+           :key="pickerKey"
+            style="width: 100%"
+            v-model="today"
+            @dayclick="dayClick"
+            @did-move="didMove"
+            :attributes="attributes"
+        />
       </div>
 
       <div class="create_calendar">
@@ -17,7 +24,7 @@
       </div>
 
       <div class="calendar_events_checkbox">
-        <el-checkbox v-model="checked1" label="Option 1" size="large" />
+        <el-checkbox label="Option 1" size="large" />
       </div>
 
     </div>
@@ -27,12 +34,14 @@
     </div>
  </div>
 
-  <el-dialog>
-    <el-form @submit.prevent="submitForm">
-      <el-form-item>
-        <el-input v-model="calendarForm.calendarName" type="text" />
+  <el-dialog v-model="dialog.calendarForm" :title="dialog.title" center :before-close="clear" width="600">
+    <el-form @submit.prevent="submitForm" label-position="top">
+      <el-form-item label="Calendar Name">
+        <el-input v-model="calendarForm.calendarName" type="text" placeholder="Calendar Name"/>
       </el-form-item>
-      <el-button type="primary">Confirm</el-button>
+      <div class="submit_btn">
+        <el-button type="primary">Confirm</el-button>
+      </div>
     </el-form>
   </el-dialog>
 </template>
@@ -46,11 +55,26 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import list from '@fullcalendar/list'
 import { supabase } from '../lib/supabaseClient'
 import { ElMessage } from 'element-plus'
+import moment from 'moment'
 
 export default {
   components: { FullCalendar, },
   data(){
     return {
+      firstDayOfMonth: new Date(),
+      lastDayOfMonth: new Date(),
+      currentYear: new Date(),
+      currentMonth: new Date(),
+      currentStartDateTime: new Date(),
+      currentEndDateTime: new Date(),
+
+      weekClicked: false,
+      dayClicked: false,
+
+      calendarApi: null,
+
+      pickerKey: 0,
+
       sidebar: {
         calendarId: ''
       },
@@ -64,11 +88,14 @@ export default {
         userId: '70f13842-28d8-4e45-9d18-a043059816a3',
         calendarName: ''
       },
-      now: new Date(),
+      today: new Date(),
 
 
       // START FULLCALENDAR
       calendarOptions: {
+         datesSet: (info) => {
+          this.datesSet(info)
+        },
         eventTimeFormat: {
           hour: '2-digit',
           minute: '2-digit',
@@ -120,7 +147,7 @@ export default {
           createEvent: {
             text: 'Create Event',
             click: () => {
-              this.openForm('Create Event')
+              this.formController('Create Event')
             },
           },
           todayCustom: {
@@ -166,6 +193,11 @@ export default {
             },
           },
         },
+        // validRange: function(nowDate) {
+        //   return {
+        //     start: nowDate
+        //   };
+        // },
         height: 600,
         plugins: [dayGridPlugin, interactionPlugin, timeGridPlugin, list, rrulePlugin],
         timeZone: 'UTC',
@@ -191,10 +223,36 @@ export default {
       },
     }
   },
-  methods: {
-      formController(title){
-
+    computed: {
+      attributes() {
+        return [
+          // {
+          //   dot: 'bar',
+          //   dates: this.calendarOptions.events,
+          // },
+          {
+            highlight: {
+              start: { fillMode: 'outline' },
+              base: { fillMode: 'light' },
+              end: { fillMode: 'outline' },
+            },
+            dates: { start: new Date(this.firstDayOfMonth), end: new Date(this.lastDayOfMonth) },
+          },
+        ]
       },
+    },
+  methods: {
+      clear(){
+        this.dialog.calendarForm = false
+      },
+
+      formController(title){
+        this.dialog.title = title
+        if(title === 'Create Calendar'){
+          this.dialog.calendarForm = true
+        }
+      },
+
       async submitForm(){
         const { data, error } = await supabase
         .from('Calendar')
@@ -222,15 +280,91 @@ export default {
       async handleDateRange(info){console.log(info)},
       async eventClick(info){console.log(info)},
 
-      async todayCustom(info) {console.log(info)},
-      async prevCustom(info) {console.log(info)},
-      async nextCustom(info) {console.log(info)},
-      async nextCustom(info) {console.log(info)},
-      async monthCustom(info) {console.log(info)},
-      async dayCustom(info) {console.log(info)},
-      async listCustom(info) {console.log(info)},
+      datesSet(info) {
+        this.currentStartDateTime = moment(info.view.activeStart).format()
+        this.currentEndDateTime = moment(info.view.activeEnd).format()
+
+        let lastDay = moment(info.view.activeEnd).subtract(1, 'days')
+
+        this.firstDayOfMonth = moment(info.view.activeStart).format()
+        this.lastDayOfMonth = lastDay.format()
+
+        this.currentMonth = moment(info.view.activeStart).format('MM')
+        this.currentYear = moment(info.view.activeStart).format('YYYY')
+      },
+
+      todayCustom() {
+        this.pickerKey++
+        this.today = new Date()
+        this.calendarApi.today()
+        this.getCalendarEvents()
+      },
+      
+      prevCustom() {
+          this.pickerKey++
+          this.calendarApi.prev()
+          const currentDate = moment(this.calendarApi.getDate()).format();
+          this.calendarApi.gotoDate(currentDate)
+          this.getCalendarEvents()
+      },
+
+      nextCustom() {
+          this.pickerKey++
+          this.calendarApi.next()
+
+          const currentDate = moment(this.calendarApi.getDate()).format();
+          this.calendarApi.gotoDate(currentDate)
+          this.getCalendarEvents()
+
+          console.log(this.pickerKey)
+      },
+
+      monthCustom() {
+        this.weekClicked = false
+        this.dayClicked = false
+        this.calendarApi.changeView('dayGridMonth')
+        this.getCalendarEvents()
+      },
+
+      weekCustom() {
+        this.weekClicked = true
+        this.dayClicked = false
+        this.calendarApi.changeView('timeGridWeek')
+        this.getCalendarEvents()
+      },
+
+      dayCustom() {
+        this.weekClicked = false
+        this.dayClicked = true
+        this.calendarApi.changeView('timeGridDay')
+        this.getCalendarEvents()
+      },
+
+      listCustom() {
+        this.calendarApi.changeView('listMonth')
+        this.getCalendarEvents()
+      },
+
+      getCalendarEvents(){
+        console.log('EVENTS HERE...')
+      },
+
+      didMove(info) {
+        let formatDate = moment(info[0].id).add(1, 'days').format()
+        this.calendarApi.gotoDate(formatDate)
+        this.getCalendarEvents()
+      },
+
+      dayClick(info) {
+        this.weekClicked = false
+        this.dayClicked = true
+        this.calendarApi.changeView('timeGridDay')
+        this.calendarApi.gotoDate(info.endDate)
+        this.getCalendarEvents()
+      },
   },
   mounted(){
+    this.calendarApi = this.$refs.refCalendar.getApi()
     this.getCalendars()
   }
 }

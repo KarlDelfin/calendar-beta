@@ -3,3 +3,5 @@
     .sidebar .create_calendar {}
     .sidebar .create_calendar button {width: 100%;}
     .calendar {width: 100%;}
+
+.submit_btn {display: flex; justify-content: end;}
