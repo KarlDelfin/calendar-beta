@@ -1,4 +1,7 @@
-.logout_con {display: flex; justify-content: end; height: 100%; align-items: center;}
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+html {font-family: "Poppins", sans-serif;}
+
+.logout_con {display: flex; justify-content: end; height: 100%; align-items: center; border-bottom: 1px solid #e1e1e1}
 
 .home_con {display: flex; gap: 20px;}
     .sidebar .cta {display: flex; gap: 10px;}
@@ -11,4 +14,16 @@
 
     .calendar {width: 100%;}
 
+/* RESOURCES */
+.not_found_con {text-align: center;}
+
+/* FULL CALENDAR */
 .submit_btn {display: flex; justify-content: end;}
+.flex_con {display: flex; gap: 20px; width: 100%}
+    .flex_con .el-form-item {width: 100%}
+    .flex_con .el-input {width: 100%}
+    .flex_con .el-color-picker {width: 80px}
+.fullCalendar a {color: unset; text-decoration: unset;}
+
+.show_hide_events {display: flex; gap: 10px;}
+.show_hide_events button {width: 100%;}

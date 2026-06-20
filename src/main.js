@@ -6,6 +6,7 @@ import 'element-plus/dist/index.css'
 import VCalendar from 'v-calendar';
 import 'v-calendar/style.css';
 import './assets/style.css'
+import 'bootstrap/dist/css/bootstrap.css'
 
 const app = createApp(App)
 

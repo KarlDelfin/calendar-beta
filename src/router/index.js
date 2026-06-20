@@ -13,6 +13,14 @@ const router = createRouter({
       name: 'calendar',
       component: () => import('../views/CalendarView.vue'),
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../components/NotFound.vue'),
+      // meta: {
+      //   isPublic: true,
+      // },
+    },
   ],
 })
 
