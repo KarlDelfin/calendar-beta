@@ -7,13 +7,13 @@ html {font-family: "Poppins", sans-serif;}
 .logout_con {display: flex; justify-content: end; height: 100%; align-items: center; border-bottom: 1px solid #e1e1e1}
 
 .home_con {display: flex; gap: 20px;}
-    .sidebar .cta {display: flex; gap: 5px;}
-    .sidebar .cta button{width: 100%;}
+    .sidebar .cta_con {display: flex; gap: 5px;}
+    .sidebar .cta_con button{width: 100%;}
     
 
     .sidebar {max-width: 250px; width: 100%; display: flex; flex-direction: column; gap: 10px}
-    .sidebar .create_calendar {}
-    .sidebar .create_calendar button {width: 100%;}
+    .sidebar .create_calendar_con {}
+    .sidebar .create_calendar_con button {width: 100%;}
 
     .calendar {width: 100%;}
 

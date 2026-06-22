@@ -1,11 +1,11 @@
 <template>
   <div class="home_con">
     <div class="sidebar">
-      <div class="cta">
+      <div class="cta_con">
         <el-button @click="this.$router.push('/calendar')">Calendars</el-button>
       </div>
 
-      <div class="vcalendar">
+      <div class="vcalendar_con">
         <VCalendar 
            :key="pickerKey"
             style="width: 100%"
@@ -16,17 +16,17 @@
         />
       </div>
 
-      <div class="create_calendar">
+      <div class="create_calendar_con">
         <el-button @click="formController('Create Calendar')" type="primary">Create Calendar</el-button>
       </div>
 
-      <div class="calendar_select">
+      <div class="calendar_select_con">
         <el-select v-model="sidebar.calendarId" :loading="loading.selectCalendarInput" @click="getCalendarsByUserId" @change="getCalendarEventsByCalendarId">
           <el-option v-for="calendar in calendars" :label="calendar.calendarName" :value="calendar.calendarId"/>
         </el-select>
       </div>
 
-      <div class="calendar_events_checkbox">
+      <div class="calendar_events_checkbox_con">
         <el-checkbox 
           v-model="selectedCalendarEvent[calendarEvent.calendarEventId]"
           v-for="calendarEvent in calendarEvents" 
@@ -39,7 +39,7 @@
           />
       </div>
 
-      <div class="show_hide_events">
+      <div class="show_hide_events_con">
           <el-button @click="checkAllEvents" >Select All</el-button >
           <el-button @click="uncheckAllEvents" >Select None</el-button >
       </div>
@@ -182,7 +182,7 @@
     </template>
   </el-dialog>
 
-   <!-- START OPERATION -->
+   <!-- CALENDAR EVENT OPERATION -->
     <el-dialog
       :before-close="clear"
       v-model="dialog.recurringEventOperation"
@@ -325,7 +325,7 @@ export default {
           var currentDate = info.view.activeStart; 
 
           this.currentStartDateTime = moment(info.view.activeStart).format()
-          this.currentEndDateTime = moment(info.view.activeEnd).format()
+          this.currentEndDateTime = moment(info.view.activeEnd).subtract(1, 'days').format()
 
           this.firstDayOfMonth = moment(currentDate).startOf('month').format();
           this.lastDayOfMonth = moment(currentDate).endOf('month').format();
@@ -497,13 +497,13 @@ export default {
         initialView: 'dayGridMonth', // Default fullcalendar view
         eventDrop: this.moveResizeEvent, // Drag and drop
         eventResize: this.moveResizeEvent, // Resize event
+        dateClick: this.handleClick, // click single date
         selectable: true, // Set selectable to true
         editable: true, // Set editable to true
         eventResizableFromStart: true, // Set resizable to true
         droppable: true, // Set drag and drop to true
 
-        select: this.handleDateRange, // Select dates
-
+        select: this.handleDateRange, // Select multiple event
         eventClick: this.eventClick, // Click event
         allDaySlot: false, // Show/hide non-recurring events false
         eventLongPressDelay: 200, // Mobile drog n drop events
@@ -523,7 +523,7 @@ export default {
             base: { fillMode: 'light' },
             end: { fillMode: 'outline' },
           },
-          dates: { start: new Date(this.firstDayOfMonth), end: new Date(this.lastDayOfMonth) },
+          dates: { start: new Date(this.currentStartDateTime), end: new Date(this.currentEndDateTime) },
         },
       ]
     },
@@ -857,12 +857,11 @@ export default {
       }
     },
 
-
     /* HANDLE DATE RANGE */
     handleDateRange(info){
       if (info.start < new Date().setHours(0,0,0,0)) {
         ElMessage.warning('Cannot create event in the past')
-        return false;
+        return
       }
       this.formController('Create Event')
 
@@ -872,7 +871,13 @@ export default {
       }
     },
 
-    async moveResizeEvent(info){console.log(info)},
+    async moveResizeEvent(info){
+      if (new Date(info.event.startStr) < new Date().setHours(0,0,0,0)) {
+        ElMessage.warning('Cannot move/resize event in the past')
+        return
+      }
+      console.log(info.event.startStr)
+    },
 
     eventClick(info) {
       this.calendarEventForm.dateTimeStartedDetails = moment(info.event.extendedProps.dateTimeStarted).format('MM/DD/YYYY HH:mm')
@@ -998,7 +1003,7 @@ export default {
         return {
           ...event,
           display: (event.rrule ? 'list-item' : 'block') ?? 'none',
-          backgroundColor: event.backgroundColor,
+          backgroundColor: event.extendedProps.calendarEventColor,
         }
       })
     },
@@ -1012,7 +1017,7 @@ export default {
         return {
           ...event,
           display: 'none',
-          backgroundColor: event.backgroundColor,
+          backbackgroundColor: event.extendedProps.calendarEventColor,
         }
       })
     },
@@ -1026,10 +1031,12 @@ export default {
           return {
             ...event,
             display: displayStatus,
-            backgroundColor: event.backgroundColor,
+            backgroundColor: event.extendedProps.calendarEventColor,
           }
         }
+        console.log(event)
         return event
+        
       })
     },
 
