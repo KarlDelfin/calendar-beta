@@ -21,7 +21,7 @@
       </div>
 
       <div class="calendar_select">
-        <el-select v-model="sidebar.calendarId" :loading="loading.selectCalendarInput" @click="getCalendars" @change="getCalendarEventsByCalendarId">
+        <el-select v-model="sidebar.calendarId" :loading="loading.selectCalendarInput" @click="getCalendarsByUserId" @change="getCalendarEventsByCalendarId">
           <el-option v-for="calendar in calendars" :label="calendar.calendarName" :value="calendar.calendarId"/>
         </el-select>
       </div>
@@ -206,7 +206,7 @@
 
       <template #footer>
         <div class="dialog-footer d-flex justify-content-end">
-          <el-button @click="formController('Edit Non-Recurring Event')"> Edit </el-button>
+          <el-button @click="calendarEventForm.isRecurring ? formController('Edit Recurring Event')  : formController('Edit Non-Recurring Event')"> Edit </el-button>
           <el-button type="danger" @click="deleteCalendarEvent()"> Delete </el-button>
         </div>
       </template>
@@ -284,7 +284,7 @@ export default {
 
         calendarEventId: '',
         calendarId: '',
-        createdByUserId: '70f13842-28d8-4e45-9d18-a043059816a3',
+        userId: '70f13842-28d8-4e45-9d18-a043059816a3',
         calendarEventName: '',
         calendarEventDescription: '',
         calendarEventColor: '#409EFF',
@@ -566,8 +566,7 @@ export default {
 
                 
         /* RECURRING (ON SERIES) */
-        if(this.operationForm.isSeries) {
-          console.log("SERIESSSSSSSS!!!!!!!!!!!!!!!!!!!!")
+        if(this.operationForm.isSeries && this.calendarEventForm.isRecurring) {
           const { data, error } = await supabase
             .from('CalendarEvent')
             .select('*')
@@ -598,7 +597,7 @@ export default {
         }
 
         /* RECURRING (JUST ONE) */
-        else {
+        if(!this.operationForm.isSeries && this.calendarEventForm.isRecurring) {
           const { data, error } = await supabase
             .from('CalendarEvent')
             .select('*')
@@ -645,7 +644,7 @@ export default {
 
           ElMessage.success('Calendar added successfully')
           this.clear()
-          this.getCalendars()
+          this.getCalendarsByUserId()
         } 
         catch (error) {
           ElMessage.error('An unexpected error occurred')
@@ -656,20 +655,28 @@ export default {
         }
       }
 
-      /* CREATE CALENDAR EVENT */
-      if(this.dialog.title === 'Create Event' || this.dialog.title === 'Edit Non-Recurring Event') {
+      /* CREATE / EDIT CALENDAR EVENT */
+      if(this.dialog.title === 'Create Event' || this.dialog.title === 'Edit Non-Recurring Event' || this.dialog.title === 'Edit Recurring Event') {
         let calendarEvents = []
         let calendarEventGroupId = uuidv4()
         
         let startDate = new Date(moment(this.calendarEventForm.dateRange.start).format())
         let endDate = new Date(moment(this.calendarEventForm.dateRange.end).format())
 
-        /* DELETE DATA FROM NON-RECURRING EVENT */
+        /* DELETE EVENTS FROM NON-RECURRING FIRST IF EVENT EXISTS*/
         if(this.dialog.title === 'Edit Non-Recurring Event') {
           const { data, error } = await supabase
             .from('CalendarEvent')
             .delete()
             .eq('calendarEventId', this.calendarEventForm.calendarEventId)
+        }
+
+        /* DELETE EVENTS FROM RECURRING FIRST IF EVENT EXISTS */
+        if(this.dialog.title === 'Edit Recurring Event') {
+          await supabase
+            .from('CalendarEvent')
+            .delete()
+            .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
         }
 
         /* RECURRING */
@@ -682,7 +689,7 @@ export default {
                 calendarEvents.push({
                   calendarId: this.selectedCalendarId,
                   calendarEventName: this.calendarEventForm.calendarEventName,
-                  createdByUserId: this.calendarEventForm.createdByUserId,
+                  userId: this.calendarEventForm.userId,
                   calendarEventDescription: this.calendarEventForm.calendarEventDescription,
                   calendarEventColor: this.calendarEventForm.calendarEventColor,
                   isRecurring: this.calendarEventForm.isRecurring,
@@ -699,7 +706,7 @@ export default {
                   calendarEvents.push({
                   calendarId: this.selectedCalendarId,
                   calendarEventName: this.calendarEventForm.calendarEventName,
-                  createdByUserId: this.calendarEventForm.createdByUserId,
+                  userId: this.calendarEventForm.userId,
                   calendarEventDescription: this.calendarEventForm.calendarEventDescription,
                   calendarEventColor: this.calendarEventForm.calendarEventColor,
                   isRecurring: this.calendarEventForm.isRecurring,
@@ -719,7 +726,7 @@ export default {
           calendarEvents.push({
             calendarId: this.selectedCalendarId,
             calendarEventName: this.calendarEventForm.calendarEventName,
-            createdByUserId: this.calendarEventForm.createdByUserId,
+            userId: this.calendarEventForm.userId,
             calendarEventDescription: this.calendarEventForm.calendarEventDescription,
             calendarEventColor: this.calendarEventForm.calendarEventColor,
             isRecurring: this.calendarEventForm.isRecurring,
@@ -754,20 +761,16 @@ export default {
           this.loading.calendarEventSubmitBtn = false
         }
       }
-
-      /* EDIT NON-RECURRING */
-      if(this.dialog.title === 'Edit Non-Recurring Event') {
-        
-      }
     },
 
     /* GET CALENDARS */
-    async getCalendars() {
+    async getCalendarsByUserId() {
       this.loading.selectCalendarInput = true
       try{
         const { data, error } = await supabase
           .from('Calendar')
           .select('*')
+          .eq('userId', this.calendarForm.userId)
           .order('dateTimeCreated', { ascending: false })
 
         this.calendars = data
@@ -855,6 +858,7 @@ export default {
     },
 
 
+    /* HANDLE DATE RANGE */
     handleDateRange(info){
       if (info.start < new Date().setHours(0,0,0,0)) {
         ElMessage.warning('Cannot create event in the past')
@@ -862,10 +866,10 @@ export default {
       }
       this.formController('Create Event')
 
-      this.calendarEventForm.dateRange.start = moment(info.startStr).format()
-      this.calendarEventForm.dateRange.end = moment(info.endStr).subtract(1, 'days').format()
-
-      this.disableRecurringDays(moment(this.calendarEventForm.dateRange.start).format(), moment(this.calendarEventForm.dateRange.end).add(1, 'days').format())
+      this.calendarEventForm.dateRange = {
+        start: moment(info.startStr).format(),
+        end: moment(info.endStr).subtract(1, 'days').format()
+      }
     },
 
     async moveResizeEvent(info){console.log(info)},
@@ -888,14 +892,14 @@ export default {
       this.calendarEventForm.calendarId = info.event.extendedProps.calendarId
       this.calendarEventForm.calendarEventGroupId = info.event.extendedProps.calendarEventGroupId
       
-      // NON-RECURRING
-      if (info.event.extendedProps.isRecurring == false) {
-        this.formController('Event Details')
+      // RECURRING
+      if (info.event.extendedProps.isRecurring) {
+        this.formController('Open Recurring Event')
        
       }
-      // RECURRING
+      // NON-RECURRING
       else {
-        this.formController('Open Recurring Event')
+        this.formController('Event Details')
       }
     },
 
@@ -920,10 +924,20 @@ export default {
         try {
           /* RECURRING CALENDAR EVENT */
           if (this.calendarEventForm.isRecurring) {
-            await supabase
-              .from('CalendarEvent')
-              .delete()
-              .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
+            switch(this.operationForm.isSeries){
+              /* DELETE IF FORM IS SERIES */
+              case true:
+                await supabase
+                  .from('CalendarEvent')
+                  .delete()
+                  .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
+              /* DELETE IF FORM IS JUST ONE */
+              case false:
+                  await supabase
+                    .from('CalendarEvent')
+                    .delete()
+                    .eq('calendarEventId', this.calendarEventForm.calendarEventId)
+            }
           } 
           /* NON-RECURRING CALENDAR EVENT */
           else {
@@ -994,7 +1008,6 @@ export default {
       this.calendarEvents.forEach((calendarEvent) => {
         this.selectedCalendarEvent[calendarEvent.calendarEventId] = false
       })
-
       this.calendarOptions.events = this.calendarOptions.events.map((event) => {
         return {
           ...event,
@@ -1007,13 +1020,9 @@ export default {
     // CHECK SHOW/HIDE INDIVIDUAL CALENDAR EVENT
     handleCheckboxChange(calendarEventId, calendarEventGroupId) {
       const isChecked = this.selectedCalendarEvent[calendarEventId]
-
       this.calendarOptions.events = this.calendarOptions.events.map((event) => {
         if (event.extendedProps.calendarEventGroupId === calendarEventGroupId) {
-          console.log(calendarEventId)
-
           const displayStatus = isChecked ? (event.rrule ? 'list-item' : 'block') : 'none'
-
           return {
             ...event,
             display: displayStatus,
@@ -1032,7 +1041,6 @@ export default {
       } else {
         this.calendarEventForm.selectedRecurringDays.push(e)
       }
-      console.log(this.calendarEventForm.selectedRecurringDays)
     },
 
     /* CALENDAR EVENT FORM DISABLE RECURRING DAYS WHEN OUT OF BOUNDS */
@@ -1053,7 +1061,6 @@ export default {
         disabled: !daysInRange.has(day.value),
       }))
 
-      // remove selected days that are now disabled
       this.calendarEventForm.selectedRecurringDays =
         this.calendarEventForm.selectedRecurringDays.filter(d =>
           daysInRange.has(d)
