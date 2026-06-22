@@ -798,7 +798,6 @@ export default {
         text: 'Loading',
         background: 'rgba(0, 0, 0, 0.7)',
       })
-
       try{
         const { data, error } = await supabase
           .from('CalendarEvent')
@@ -815,7 +814,7 @@ export default {
         this.calendarOptions.events = data.map(event => ({
           title: event.calendarEventName,
           start: event.dateTimeStarted,
-          end: moment(event.dateTimeEnded).add(1, 'days').format(),
+          end: moment(event.dateTimeEnded).format(),
           color: event.calendarEventColor,
           extendedProps: {
             calendarEventId: event.calendarEventId,
@@ -830,7 +829,8 @@ export default {
             dateTimeStarted: moment(event.dateTimeStarted).format(),
             dateTimeEnded: moment(event.dateTimeEnded).format(),
           },
-          allDay: true,
+          allDay: this.calendarApi?.view?.type !== 'timeGridWeek' && 
+                  this.calendarApi?.view?.type !== 'timeGridDay',
           rrule:
             event.isRecurring ? {
                   freq: 'weekly',
@@ -840,7 +840,6 @@ export default {
                 }
               : undefined,
           display: event.isRecurring ? 'list-item' : 'block',
-          
         }))
       }
       catch(error) {
@@ -867,6 +866,7 @@ export default {
     },
 
     async moveResizeEvent(info){
+      document.querySelectorAll('.bs-popover-auto').forEach(el => el.remove());
       if (new Date(info.event.startStr) < new Date().setHours(0,0,0,0)) {
         ElMessage.warning('Cannot move/resize event in the past')
         return
