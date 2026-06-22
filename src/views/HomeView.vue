@@ -815,7 +815,7 @@ export default {
         this.calendarOptions.events = data.map(event => ({
           title: event.calendarEventName,
           start: event.dateTimeStarted,
-          end: moment(event.dateTimeEnded).format(),
+          end: moment(event.dateTimeEnded).add(1, 'days').format(),
           color: event.calendarEventColor,
           extendedProps: {
             calendarEventId: event.calendarEventId,
@@ -830,12 +830,7 @@ export default {
             dateTimeStarted: moment(event.dateTimeStarted).format(),
             dateTimeEnded: moment(event.dateTimeEnded).format(),
           },
-          allDay:
-            this.weekClicked || this.dayClicked
-              ? false
-              : event.isRecurring
-                ? true
-                : false,
+          allDay: true,
           rrule:
             event.isRecurring ? {
                   freq: 'weekly',
