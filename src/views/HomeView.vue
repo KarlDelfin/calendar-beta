@@ -21,7 +21,7 @@
       </div>
 
       <div class="calendar_select_con">
-        <el-select v-model="sidebar.calendarId" :loading="loading.selectCalendarInput" @click="getCalendarsByUserId" @change="getCalendarEventsByCalendarId">
+        <el-select v-model="sidebar.calendarId" :loading="loading" @click="getCalendarsByUserId" @change="getCalendarEventsByCalendarId">
           <el-option v-for="calendar in calendars" :label="calendar.calendarName" :value="calendar.calendarId"/>
         </el-select>
       </div>
@@ -58,7 +58,7 @@
           <el-input v-model="calendarForm.calendarName" type="text" placeholder="Calendar Name"/>
         </el-form-item>
         <div class="submit_btn">
-          <el-button @click="submitForm" type="primary" :loading="loading.calendarSubmitBtn">Confirm</el-button>
+          <el-button @click="submitForm" type="primary" :loading="loading">Confirm</el-button>
         </div>
       </el-form>
   </el-dialog>
@@ -149,7 +149,7 @@
         </el-checkbox>
       </div>
       <div class="submit_btn">
-        <el-button @click="submitForm" type="primary" :loading="loading.calendarEventSubmitBtn">Confirm</el-button>
+        <el-button @click="submitForm" type="primary" :loading="loading">Confirm</el-button>
       </div>
     </el-form>
   </el-dialog>
@@ -260,11 +260,7 @@ export default {
         title: '',
       },
 
-      loading: {
-        calendarSubmitBtn: false,
-        selectCalendarInput: false,
-        calendarEventSubmitBtn: false
-      },
+      loading: false,
 
       calendars: [],
       selectedCalendarEvent: [],
@@ -275,7 +271,7 @@ export default {
       },
 
       calendarForm: {
-        userId: '70f13842-28d8-4e45-9d18-a043059816a3',
+        userId: this.$store.getters.getUser.id,
         calendarName: ''
       },
       calendarEventForm: {
@@ -284,7 +280,7 @@ export default {
 
         calendarEventId: '',
         calendarId: '',
-        userId: '70f13842-28d8-4e45-9d18-a043059816a3',
+        userId: this.$store.getters.getUser.id,
         calendarEventName: '',
         calendarEventDescription: '',
         calendarEventColor: '#409EFF',
@@ -630,7 +626,7 @@ export default {
     async submitForm() {
       /* CREATE CALENDAR */
       if (this.dialog.title === 'Create Calendar') {
-        this.loading.calendarSubmitBtn = true
+        this.loading = true
         
         try {
           const { data, error } = await supabase
@@ -651,7 +647,7 @@ export default {
           console.error(error)
         } 
         finally {
-          this.loading.calendarSubmitBtn = false
+          this.loading = false
         }
       }
 
@@ -738,7 +734,7 @@ export default {
           })
         }
 
-        this.loading.calendarEventSubmitBtn = true
+        this.loading = true
         try {
           const { data, error } = await supabase
             .from('CalendarEvent')
@@ -758,14 +754,14 @@ export default {
           console.error(error)
         }
         finally{
-          this.loading.calendarEventSubmitBtn = false
+          this.loading = false
         }
       }
     },
 
     /* GET CALENDARS */
     async getCalendarsByUserId() {
-      this.loading.selectCalendarInput = true
+      this.loading = true
       try{
         const { data, error } = await supabase
           .from('Calendar')
@@ -780,7 +776,7 @@ export default {
         console.error(error)
       }
       finally{
-        this.loading.selectCalendarInput = false
+        this.loading = false
       }
     },
 
@@ -814,7 +810,7 @@ export default {
         this.calendarOptions.events = data.map(event => ({
           title: event.calendarEventName,
           start: event.dateTimeStarted,
-          end: moment(event.dateTimeEnded).format(),
+          end: moment(event.dateTimeEnded).add(1, 'days').format(),
           color: event.calendarEventColor,
           extendedProps: {
             calendarEventId: event.calendarEventId,
@@ -866,12 +862,52 @@ export default {
     },
 
     async moveResizeEvent(info){
+      this.loading = true
       document.querySelectorAll('.bs-popover-auto').forEach(el => el.remove());
       if (new Date(info.event.startStr) < new Date().setHours(0,0,0,0)) {
         ElMessage.warning('Cannot move/resize event in the past')
+        this.getCalendarEventsByCalendarId(this.selectedCalendarId)
         return
       }
       console.log(info.event.startStr)
+      console.log(info.event.end)
+
+      try{
+        const { data, error } = await supabase
+              .from('CalendarEvent')
+              .delete()
+              .eq('calendarEventId', info.event.extendedProps.calendarEventId)
+      }
+      catch(error) {throw error}
+      finally {}
+
+      try{
+        let startDate = moment(info.event.startStr).format('YYYY-MM-DD')
+        let endDate = moment(info.event.endStr).subtract(1, 'days').format('YYYY-MM-DD')
+        let startTime = moment(info.event.extendedProps.dateTimeStarted).format('HH:mm:ss')
+        let endTime = moment(info.event.extendedProps.dateTimeEnded).format('HH:mm:ss')
+        let calendarEventGroupId = uuidv4()
+        let payload = {
+          calendarId: info.event.extendedProps.calendarId,
+          userId: this.$store.getters.getUser.id,
+          calendarEventName: info.event.extendedProps.calendarEventName,
+          calendarEventDescription: info.event.extendedProps.calendarEventDescription,
+          calendarEventColor: info.event.extendedProps.calendarEventColor,
+          dateTimeStarted: `${startDate}T${startTime}`,
+          dateTimeEnded: `${endDate}T${endTime}`,
+          isRecurring: info.event.extendedProps.isRecurring,
+          calendarEventGroupId: calendarEventGroupId
+        }
+        // console.log(payload)
+        const { data, error } = await supabase
+          .from('CalendarEvent')
+          .insert(payload)
+
+          if(error) throw error
+      }
+      catch(error) {throw error}
+      finally {this.loading = true}
+
     },
 
     eventClick(info) {
@@ -966,9 +1002,9 @@ export default {
       this.dialog.calendarEventConfirmation = false
       this.dialog.recurringEventOperation = false
       
-      this.loading.calendarSubmitBtn = false
-      this.loading.calendarEventSubmitBtn = false
-      this.loading.selectCalendarInput = false
+      this.loading = false
+      this.loading = false
+      this.loading = false
 
       this.calendarForm.calendarName = ''
 
@@ -1087,6 +1123,8 @@ export default {
   },
   mounted(){
     this.calendarApi = this.$refs.refCalendar.getApi()
+    console.log(this.$store.getters.getUser.id)
+    console.log(this.$store.getters.getUser)
   },
   watch: {
     'calendarEventForm.dateRange': {

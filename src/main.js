@@ -3,14 +3,36 @@ import App from './App.vue'
 import router from './router'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
-import VCalendar from 'v-calendar';
-import 'v-calendar/style.css';
+import VCalendar from 'v-calendar'
+import 'v-calendar/style.css'
 import './assets/style.css'
 import 'bootstrap/dist/css/bootstrap.css'
+import { store } from './store'
+import { supabase } from './lib/supabaseClient.js'
 
-const app = createApp(App)
+async function supabaseSession() {
+  const { data: { session } } = await supabase.auth.getSession()
 
-app.use(router)
-app.use(ElementPlus)
-app.use(VCalendar, {})
-app.mount('#app')
+  if (session) {
+    store.dispatch('setUser', session.user)
+  }
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      store.dispatch('setUser', session.user)
+    } else {
+      store.dispatch('setUser', null)
+    }
+  })
+
+  const app = createApp(App)
+
+  app.use(store)
+  app.use(router)
+  app.use(ElementPlus)
+  app.use(VCalendar, {})
+
+  app.mount('#app')
+}
+
+supabaseSession()

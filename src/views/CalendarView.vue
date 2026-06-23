@@ -129,7 +129,7 @@ export default {
             },
 
             calendarForm: {
-                userId: '70f13842-28d8-4e45-9d18-a043059816a3',
+                userId: this.$store.getters.getUser.id,
                 calendarId: '',
                 calendarName: ''
             },
@@ -174,7 +174,7 @@ export default {
             if (this.dialog.title === 'Create Calendar') {
                 this.loading = true
                 let payload = {
-                    userId: this.calendarForm.userId,
+                    userId: this.$store.getters.getUser.id,
                     calendarName: this.calendarForm.calendarName
                 }
 
@@ -204,7 +204,7 @@ export default {
             if(this.dialog.title === 'Edit Calendar'){
                 this.loading = true
                 let payload = {
-                    userId: this.calendarForm.userId,
+                    userId: this.$store.getters.getUser.id,
                     calendarName: this.calendarForm.calendarName
                 }
                 try{
@@ -312,16 +312,21 @@ export default {
             this.loading = true;
             
             try {
-                const { data, error } = await supabase
-                    .from('User')
-                    .select('*')
-                    .eq('email', this.search.userEmail)
-                    .filter('userId', 'not.in', 
-                        `(${await supabase.from('SharedCalendar').select('userId').then(res => res.data?.map(r => r.userId).join(','))})`
-                    );
-                
+                // const { data, error } = await supabase
+                //     .from('User')
+                //     .select('*')
+                //     .eq('email', this.search.userEmail)
+                //     .filter('userId', 'not.in', 
+                //         `(${await supabase.from('SharedCalendar').select('userId').then(res => res.data?.map(r => r.userId).join(','))})`
+                //     );
+                const { data: { users }, error } = await supabase.auth.admin.listUsers({
+                    filter: {
+                        email: this.search.userEmail 
+                    }
+                });
                 if (error) throw error;
-                this.users = data;
+                
+                console.log("User Data:", users);
             } catch (error) {
                 ElMessage.error('An unexpected error occurred');
                 console.error(error);
@@ -335,7 +340,8 @@ export default {
             this.loading = true;
             let payload = {
                 calendarId: this.selectedCalendarId,
-                userId: data.userId
+                shareToUserId: data.userId,
+                calendarOwnerId: this.$store.getters.getUser.id
             }
 
             try{
