@@ -624,10 +624,10 @@ export default {
 
     /* CREATE / UPDATE */
     async submitForm() {
+      this.loading = true
+
       /* CREATE CALENDAR */
       if (this.dialog.title === 'Create Calendar') {
-        this.loading = true
-        
         try {
           const { data, error } = await supabase
             .from('Calendar')
@@ -667,15 +667,23 @@ export default {
             .eq('calendarEventId', this.calendarEventForm.calendarEventId)
         }
 
-        /* DELETE EVENTS FROM RECURRING FIRST IF EVENT EXISTS */
-        if(this.dialog.title === 'Edit Recurring Event') {
+        /* DELETE EVENTS FROM RECURRING FIRST IF EVENT EXISTS (NO SELECTED DAYS) */
+        if(this.dialog.title === 'Edit Recurring Event' && !this.operationForm.isSeries) {
+          const { data, error } = await supabase
+            .from('CalendarEvent')
+            .delete()
+            .eq('calendarEventId', this.calendarEventForm.calendarEventId)
+        }
+        
+        /* DELETE EVENTS FROM RECURRING FIRST IF EVENT EXISTS (NO SELECTED DAYS) */
+        if(this.dialog.title === 'Edit Recurring Event' && this.operationForm.isSeries) {
           await supabase
             .from('CalendarEvent')
             .delete()
             .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
         }
 
-        /* RECURRING */
+        /* RECURRING WITH SELECTED RECURRING DAYS */
         if(this.calendarEventForm.isRecurring) {
           while(startDate <= endDate) {
             const startDay = startDate.getDay()
@@ -698,6 +706,7 @@ export default {
               }
             }
 
+            /* RECURRING SERIES */
             if(this.calendarEventForm.selectedRecurringDays.length === 0){
                   calendarEvents.push({
                   calendarId: this.selectedCalendarId,
@@ -734,7 +743,6 @@ export default {
           })
         }
 
-        this.loading = true
         try {
           const { data, error } = await supabase
             .from('CalendarEvent')
@@ -869,17 +877,19 @@ export default {
         this.getCalendarEventsByCalendarId(this.selectedCalendarId)
         return
       }
-      console.log(info.event.startStr)
-      console.log(info.event.end)
 
       try{
         const { data, error } = await supabase
-              .from('CalendarEvent')
-              .delete()
-              .eq('calendarEventId', info.event.extendedProps.calendarEventId)
+          .from('CalendarEvent')
+          .delete()
+          .eq('calendarEventId', info.event.extendedProps.calendarEventId)
       }
-      catch(error) {throw error}
-      finally {}
+      catch(error) {
+        throw error
+      }
+      finally { 
+        this.loading = false 
+      }
 
       try{
         let startDate = moment(info.event.startStr).format('YYYY-MM-DD')
@@ -898,16 +908,16 @@ export default {
           isRecurring: info.event.extendedProps.isRecurring,
           calendarEventGroupId: calendarEventGroupId
         }
-        // console.log(payload)
         const { data, error } = await supabase
           .from('CalendarEvent')
           .insert(payload)
 
           if(error) throw error
+
+          this.getCalendarEventsByCalendarId(this.selectedCalendarId)
       }
       catch(error) {throw error}
-      finally {this.loading = true}
-
+      finally {this.loading = false}
     },
 
     eventClick(info) {
@@ -960,19 +970,19 @@ export default {
         try {
           /* RECURRING CALENDAR EVENT */
           if (this.calendarEventForm.isRecurring) {
-            switch(this.operationForm.isSeries){
+            if(this.operationForm.isSeries){
               /* DELETE IF FORM IS SERIES */
-              case true:
-                await supabase
-                  .from('CalendarEvent')
-                  .delete()
-                  .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
+              await supabase
+                .from('CalendarEvent')
+                .delete()
+                .eq('calendarEventGroupId', this.calendarEventForm.calendarEventGroupId)
+            }
+            else{
               /* DELETE IF FORM IS JUST ONE */
-              case false:
-                  await supabase
-                    .from('CalendarEvent')
-                    .delete()
-                    .eq('calendarEventId', this.calendarEventForm.calendarEventId)
+              await supabase
+                .from('CalendarEvent')
+                .delete()
+                .eq('calendarEventId', this.calendarEventForm.calendarEventId)
             }
           } 
           /* NON-RECURRING CALENDAR EVENT */
