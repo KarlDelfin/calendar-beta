@@ -42,14 +42,14 @@ export default {
         email: this.email,
         password: this.password
       })
-      if (error) alert(error.message)
+      if (error) throw error
     },
     async signIn() {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: this.email,
         password: this.password
       })
-      if (error) alert(error.message)
+      if (error) throw error
 
       this.$store.dispatch('setUser', data.user)
       console.log('User ID:', this.$store.getters.getUser)

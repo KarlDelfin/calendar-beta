@@ -576,7 +576,7 @@ export default {
             this.calendarEventForm.dateTimeEndedDetails = startDate.format('MM/DD/YYYY') + ' ' + endDate.format('HH:mm') 
 
             this.calendarEventForm.dateTimeStartedDetails = moment(data[0].dateTimeStarted).format('MM/DD/YYYY HH:mm')
-            this.calendarEventForm.dateTimeEndedDetails = moment(data[0].dateTimeEnded).format('MM/DD/YYYY HH:mm')
+            this.calendarEventForm.dateTimeEndedDetails = moment(data[data.length-1].dateTimeEnded).format('MM/DD/YYYY HH:mm')
             
             this.calendarEventForm.calendarEventId = data[0].calendarEventId
             this.calendarEventForm.calendarEventName = data[0].calendarEventName
@@ -585,9 +585,9 @@ export default {
             this.calendarEventForm.startTime = data[0].dateTimeStarted
             this.calendarEventForm.endTime = data[0].dateTimeEnded
             this.calendarEventForm.dateRange = { 
-              start: moment(data[0].dateTimeStarted).format(),
-              end:  moment(data[0].dateTimeEnded) .format()
-              }
+              start: moment(data[0].dateTimeStarted).format('MM/DD/YYYY HH:mm'),
+              end: moment(data[data.length-1].dateTimeEnded).format('MM/DD/YYYY HH:mm')
+            }
             this.calendarEventForm.isRecurring = data[0].isRecurring
             this.calendarEventForm.calendarId = data[0].calendarId
         }
@@ -603,8 +603,8 @@ export default {
             const startDate = moment(data[0].dateTimeStarted)
             const endDate = moment(data[0].dateTimeEnded)
 
-            this.calendarEventForm.dateTimeStartedDetails = startDate.format('MM/DD/YYYY') + ' ' + startDate.format('HH:mm')
-            this.calendarEventForm.dateTimeEndedDetails = startDate.format('MM/DD/YYYY') + ' ' + endDate.format('HH:mm') 
+            this.calendarEventForm.dateTimeStartedDetails = moment(data[0].dateTimeStarted).format('MM/DD/YYYY HH:mm')
+            this.calendarEventForm.dateTimeEndedDetails = moment(data[data.length-1].dateTimeEnded).format('MM/DD/YYYY HH:mm')
 
             this.calendarEventForm.calendarEventId = data[0].calendarEventId
             this.calendarEventForm.calendarEventName = data[0].calendarEventName
@@ -613,8 +613,8 @@ export default {
             this.calendarEventForm.startTime = data[0].dateTimeStarted
             this.calendarEventForm.endTime = data[0].dateTimeEnded
             this.calendarEventForm.dateRange = { 
-              start: startDate.format('YYYY-MM-DD') + 'T' + startDate.format('HH:mm:ss'),
-              end:  startDate.format('YYYY-MM-DD') + 'T' + endDate.format('HH:mm:ss')
+              start: moment(data[0].dateTimeStarted).format('MM/DD/YYYY HH:mm'),
+              end: moment(data[data.length-1].dateTimeEnded).format('MM/DD/YYYY HH:mm')
             }
             this.calendarEventForm.isRecurring = data[0].isRecurring
             this.calendarEventForm.calendarId = data[0].calendarId
@@ -699,7 +699,7 @@ export default {
                   isRecurring: this.calendarEventForm.isRecurring,
 
                   dateTimeStarted: moment(startDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.startTime).format('HH:mm:ss')}`),
-                  dateTimeEnded: moment(endDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.endTime).format('HH:mm:ss')}`),
+                  dateTimeEnded: moment(startDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.endTime).format('HH:mm:ss')}`),
 
                   calendarEventGroupId: calendarEventGroupId,
                 })
@@ -717,7 +717,7 @@ export default {
                   isRecurring: this.calendarEventForm.isRecurring,
 
                   dateTimeStarted: moment(startDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.startTime).format('HH:mm:ss')}`),
-                  dateTimeEnded: moment(endDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.endTime).format('HH:mm:ss')}`),
+                  dateTimeEnded: moment(startDate).format(`YYYY-MM-DDT${moment(this.calendarEventForm.endTime).format('HH:mm:ss')}`),
 
                   calendarEventGroupId: calendarEventGroupId,
                 })

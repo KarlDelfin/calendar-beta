@@ -66,37 +66,49 @@
 
     <!-- SHARE CALENDAR DIALOG -->
     <el-dialog v-model="dialog.sharedCalendarForm" :title="dialog.title" center :before-close="clear" width="600">
-        <el-form label-position="top">
-            <el-collapse accordion>
-                <el-collapse-item title="Filter Results" name="1">
-                <el-form>
-                    <el-input placeholder="Search User" v-model="search.userEmail" />
-                    <div class="search_con">
-                        <el-button @click="clear"> Reset </el-button>
-                        <el-button type="primary" @click="getUsersByEmail" :loading="loading"> Apply </el-button>
-                    </div>
-                </el-form>
-                </el-collapse-item>
-            </el-collapse>
-            
-            <!-- SHARED CALENDAR TABLE -->
-            <div v-if="users.length == 0">
-                <el-empty description="No Data" />
-            </div>
-            <el-table v-else :data="users" :loading="loading">
-                <el-table-column label="User Name">
-                    <template #default="scope">
-                        <p>{{ scope.row.firstName }} {{ scope.row.lastName }}</p>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="email" label="Email"/>
-                <el-table-column label="Operation">
-                    <template #default="scope" align="end">
-                        <el-button @click="assignUser(scope.row)" type="primary" :loading="loading">Assign</el-button>
-                    </template>
-                </el-table-column>
-            </el-table>
-        </el-form>
+        <el-tabs v-model="tab" class="demo-tabs" @tab-click="changeTab">
+            <el-tab-pane label="Assign User" name="first">
+                <el-form label-position="top">
+                    <el-collapse accordion>
+                        <el-collapse-item title="Filter Results" name="1">
+                        <el-form>
+                            <el-input placeholder="Search User" v-model="search.userEmail" />
+                            <div class="search_con">
+                                <el-button @click="clear"> Reset </el-button>
+                                <el-button type="primary" @click="getUsersByEmail" :loading="loading"> Apply </el-button>
+                            </div>
+                        </el-form>
+                        </el-collapse-item>
+                    </el-collapse>
+                    </el-form>
+                    
+                
+                    <!-- SHARED CALENDAR TABLE -->
+                    <el-empty v-if="users.length == 0" description="No Data" />
+                    
+                    <el-table v-else :data="users" :loading="loading">
+                        <el-table-column label="User Name">
+                            <template #default="scope">
+                                <p>{{ scope.row.firstName }} {{ scope.row.lastName }}</p>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="email" label="Email"/>
+                        <el-table-column label="Operation" align="center">
+                            <template #default="scope" >
+                                <el-button @click="assignUser(scope.row.id)" type="primary" :loading="loading">Assign</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-tab-pane>
+
+                <!-- SHARED USER -->
+                <el-tab-pane label="Shared Users" name="second">
+                    <el-empty v-if="users.length == 0" description="No Data" />
+                    <el-table v-else>
+                        <el-table-column/>
+                    </el-table>
+                </el-tab-pane>
+        </el-tabs>
     </el-dialog>
 </template>
 
@@ -110,6 +122,9 @@ export default {
             selectedCalendarId: '',
             users: [],
             calendars: [],
+
+            tab: 'first',
+
             calendarPagination: {
                 currentPage: 1,
                 elementsPerPage: 10,
@@ -136,7 +151,8 @@ export default {
 
             sharedCalendarForm: {
                 calendarId: '',
-                userId: ''
+                userId: '',
+                calendarOwnerUserId: ''
             },
 
             loading: false,
@@ -148,6 +164,9 @@ export default {
         }
     },
     methods: {
+        changeTab(data){
+            console.log(data.paneName)
+        },
         /* FORM CONTROLLER */
         async formController(title, data){
             this.dialog.title = title
@@ -331,14 +350,37 @@ export default {
         },
 
         /* ASSIGN CALENDAR TO A USER */
-        async assignUser(data) {
+        async assignUser(userId) {
             this.loading = true;
             let payload = {
                 calendarId: this.selectedCalendarId,
-                shareToUserId: data.userId,
-                calendarOwnerId: this.$store.getters.getUser.id
+                shareToUserId: userId,
+                calendarOwnerUserId: this.$store.getters.getUser.id
             }
 
+            /* CHECK IF USER ALREADY HAS ACCESS TO THIS CALENDAR */
+            try{
+                const { data, error} = await supabase
+                    .from('SharedCalendar')
+                    .select('*')
+                    .eq('shareToUserId', userId)
+                    .eq('calendarId', this.selectedCalendarId)
+                if(error) throw error
+
+                if(data) {
+                    ElMessage.warning('The user already has access to this calendar')
+                    return
+                }
+            }
+            catch(error){
+                ElMessage.error('An unexpected error occurred')
+                console.error(error)
+            }
+            finally{
+                this.loading = false;
+            }
+            
+            /* ASSIGN USER */
             try{
                 const { data, error } = await supabase
                     .from('SharedCalendar')
