@@ -309,24 +309,19 @@ export default {
 
         /* GET USER BY EMAIL */
         async getUsersByEmail() {
+            this.users = []
             this.loading = true;
             
             try {
-                // const { data, error } = await supabase
-                //     .from('User')
-                //     .select('*')
-                //     .eq('email', this.search.userEmail)
-                //     .filter('userId', 'not.in', 
-                //         `(${await supabase.from('SharedCalendar').select('userId').then(res => res.data?.map(r => r.userId).join(','))})`
-                //     );
-                const { data: { users }, error } = await supabase.auth.admin.listUsers({
-                    filter: {
-                        email: this.search.userEmail 
-                    }
-                });
+                const { data: { users }, error } = await supabase.auth.admin.listUsers(
+                    {
+                        page: 1,
+                        perPage: 10 // Adjust based on your user counts (handles pagination)
+                    });
                 if (error) throw error;
                 
-                console.log("User Data:", users);
+                const user = users.find(u => u.email === this.search.userEmail)
+                this.users.push(user) || []
             } catch (error) {
                 ElMessage.error('An unexpected error occurred');
                 console.error(error);

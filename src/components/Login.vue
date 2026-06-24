@@ -1,9 +1,9 @@
 <template>
   <div>
-    <form v-if="!user" @submit.prevent="signUp">
+    <form v-if="!user">
       <el-input v-model="email" placeholder="Email" type="email" required />
       <el-input v-model="password" placeholder="Password" type="password" required />
-      <el-button type="submit">Sign Up</el-button>
+      <el-button type="submit" @click="signUp">Sign Up</el-button>
     </form>
 
     <el-form v-if="!user" @submit.prevent="signIn">
