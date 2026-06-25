@@ -870,6 +870,8 @@ export default {
     },
 
     async moveResizeEvent(info){
+      console.log(info.event.startStr)
+      console.log(info.event.endStr)
       this.loading = true
       document.querySelectorAll('.bs-popover-auto').forEach(el => el.remove());
       if (new Date(info.event.startStr) < new Date().setHours(0,0,0,0)) {
@@ -896,15 +898,18 @@ export default {
         let endDate = moment(info.event.endStr).subtract(1, 'days').format('YYYY-MM-DD')
         let startTime = moment(info.event.extendedProps.dateTimeStarted).format('HH:mm:ss')
         let endTime = moment(info.event.extendedProps.dateTimeEnded).format('HH:mm:ss')
+        let startDateTime = `${startDate}T${startTime}`
+        let endDateTime = `${endDate}T${endTime}`
         let calendarEventGroupId = uuidv4()
+
         let payload = {
           calendarId: info.event.extendedProps.calendarId,
           userId: this.$store.getters.getUser.id,
           calendarEventName: info.event.extendedProps.calendarEventName,
           calendarEventDescription: info.event.extendedProps.calendarEventDescription,
           calendarEventColor: info.event.extendedProps.calendarEventColor,
-          dateTimeStarted: `${startDate}T${startTime}`,
-          dateTimeEnded: `${endDate}T${endTime}`,
+          dateTimeStarted: this.calendarApi?.view?.type === 'dayGridMonth' ? startDateTime : info.event.startStr,
+          dateTimeEnded: this.calendarApi?.view?.type === 'dayGridMonth' ? endDateTime : info.event.endStr,
           isRecurring: info.event.extendedProps.isRecurring,
           calendarEventGroupId: calendarEventGroupId
         }
